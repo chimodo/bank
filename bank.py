@@ -1,5 +1,7 @@
 # loans
 from tabulate import tabulate
+from csv import DictWriter
+import os
 
 '''Allow the user to:
 o Select the type of loan.
@@ -14,9 +16,9 @@ o Enter their monthly income to check debt ratio complian
  Personal Loan: 9.6% interest rate, term up to 10 years'''
 
 loan_types = [
-    {"select": 0,"type": "housing", "interest_rate": 5.2, "max_term": 25},
-    {"select": 1,"type": "auto", "interest_rate": 7.5, "max_term": 6},
-    {"select": 2,"type": "personal", "interest_rate": 9.6, "max_term": 10}
+    {"select": 0,"loan_type": "housing", "interest_rate": 5.2, "max_term": 25},
+    {"select": 1,"loan_type": "auto", "interest_rate": 7.5, "max_term": 6},
+    {"select": 2,"loan_type": "personal", "interest_rate": 9.6, "max_term": 10}
 ]
 
 # save loan data here for printing and file
@@ -43,7 +45,7 @@ def valid_term(loan_type):
             if term in range(max_term + 1):
                 return term
             else:
-                print(f"The maximum term for {loan_type["loan_type"]} loan is {max_term}")
+                print(f"The maximum term for {loan_type['loan_type']} loan is {max_term}")
         except ValueError:
             print("Enter a vaid integer")
 
@@ -51,11 +53,13 @@ def main():
     # select loan type
     options = tabulate(loan_types, headers = "keys")
     print(options)
+
+    loan_choice = {}
     while True:
         try:
             choice = int(input("select a loan type based on the corresponding number: ").strip().upper())
             if choice in range(3):
-                loan_type = loan_types[choice]
+                loan_choice = loan_types[choice]
                 break
             else:
                 print("select numbers 0 to 2 to choose a loan type: ")
@@ -63,10 +67,10 @@ def main():
             print("please enter a valid integer")
 
     # Enter income
-    income = valid_amount("Please enter your monthly income: ")
+    income = round(valid_amount("Please enter your monthly income: "),2)
     # select loan amount
     
-    loan_amount = valid_amount("Please enter your loan amount: ")
+    loan_amount = round(valid_amount("Please enter your loan amount: "),2)
 
 
     # select term, whithin loan type limit (in years or months?)
@@ -76,12 +80,23 @@ def main():
 
     installment = calculate_installment(loan_amount, interest_rate, term)
     
-    if debt_ratio(installment, income) > 0.5:
+    if debt_ratio(income, installment) > 0.5:
         print("Your income is too low for this loan amount and term")
     else:
+        total_interest = round(installment*term*12 - loan_amount, 2)
+        loan_data = {'loan_type': loan_types[choice]['loan_type'],
+                     'loan_amount': loan_amount,
+                     'interest_rate': interest_rate,
+                     'term': term,
+                     'monthly_payment': installment,
+                     'total_interest': total_interest,
+                     'status': 'approved'}
         print_loan(loan_data)
         # into a file Loan Type, Loan Amount, Interest Rate, Term, Monthly Payment, Total Interest,Status
+
         save_loan(loan_data)
+
+    
 
 
 def calculate_installment(loan_amount, interest_rate, term):
@@ -89,17 +104,37 @@ def calculate_installment(loan_amount, interest_rate, term):
     r = interest_rate/(100*12)
     n = term*12
 
-    m = (p * r * ((1+r)**n))/((1+r)**n -1)
+    m = round((p * r * ((1+r)**n))/((1+r)**n -1), 2)
     print(m)
     return m
 
 def debt_ratio(income, installment):
+    print(f"debt ratio {installment/income}")
     return installment/income
 
 def print_loan(loan_data):
     pass
 
 def save_loan(loan_data):
-    pass
+
+    print(f"Loan data: {loan_data}")
+    file_path = 'loan_records.csv'
+    file_exists = os.path.exists(file_path)  # Check if file exists
+    field_names = loan_data.keys()
+
+    with open(file_path, 'a+', newline='') as file:
+        # use keys as headings
+        writer = DictWriter(file, fieldnames=field_names)
+
+        # Write headers if the file is new
+        if file.tell() == 0:
+            writer.writeheader()
+    
+        # Pass the dictionary as an argument to the Writerow()
+        writer.writerow(loan_data)
+    
+        # Close the file object
+        print("file created!")
+        
 
 main()
